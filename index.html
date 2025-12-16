@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flappy ZigZag Easy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<style>
+*{box-sizing:border-box; touch-action: manipulation;}
+body{
+  margin:0;
+  background:#111;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  overflow:hidden;
+  font-family:Arial, sans-serif;
+}
+canvas{
+  width:100vw;
+  max-width:420px;
+  height:100vh;
+  max-height:720px;
+  background:#000;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<script>
+/* CANVAS */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const W = 360, H = 600;
+canvas.width = W;
+canvas.height = H;
+
+/* IMAGES */
+const pipeImg = new Image();
+const bgImg = new Image();
+pipeImg.src = "rahul.png";
+bgImg.src = "building.png";
+
+/* MUSIC */
+const music = new Audio("music.mp3");
+music.loop = true;
+music.volume = 0.35;
+
+/* GAME STATE */
+let frames=0, score=0, gameOver=false, bgX=0;
+
+/* EASY MODE SETTINGS */
+const PIPE_H = 240;
+const GAP = 220;          // 👈 BIG GAP (EASY)
+const SPEED = 2.0;        // 👈 SLOW
+const ZIG_SHIFT = 30;     // 👈 SOFT ZIG-ZAG
+
+/* PLAYER */
+const bird={
+  x:70,y:260,w:44,h:44,
+  gravity:0.38,
+  lift:-7.2,
+  vel:0,
+  draw(){
+    ctx.fillStyle="#ff9800";
+    ctx.beginPath();
+    ctx.arc(this.x+this.w/2,this.y+this.h/2,this.w/2,0,Math.PI*2);
+    ctx.fill();
+  },
+  update(){
+    this.vel+=this.gravity;
+    this.y+=this.vel;
+    if(this.y<0||this.y+this.h>H) endGame();
+  },
+  flap(){this.vel=this.lift;}
+};
+
+/* PIPES */
+const pipes=[];
+let gapCenter=H/2;
+let dir=1;
+
+function createPipe(){
+  dir*=-1;
+  gapCenter+=dir*ZIG_SHIFT;
+  gapCenter=Math.max(160,Math.min(H-160,gapCenter));
+  pipes.push({
+    x:W,
+    topEnd:gapCenter-GAP/2,
+    bottomStart:gapCenter+GAP/2,
+    w:70,passed:false
+  });
+}
+
+/* BACKGROUND */
+function drawBG(){
+  ctx.drawImage(bgImg,bgX,0,W,H);
+  ctx.drawImage(bgImg,bgX+W,0,W,H);
+  bgX-=0.4;
+  if(bgX<=-W) bgX=0;
+}
+
+/* DRAW PIPES */
+function drawPipes(){
+  pipes.forEach(p=>{
+    ctx.save();
+    ctx.translate(p.x+p.w/2,p.topEnd);
+    ctx.scale(1,-1);
+    ctx.drawImage(pipeImg,-p.w/2,0,p.w,PIPE_H);
+    ctx.restore();
+    ctx.drawImage(pipeImg,p.x,p.bottomStart,p.w,PIPE_H);
+  });
+}
+
+/* UPDATE */
+function updatePipes(){
+  pipes.forEach(p=>{
+    p.x-=SPEED;
+    if(!p.passed&&p.x+p.w<bird.x){p.passed=true;score++;}
+    if(bird.x<p.x+p.w&&bird.x+bird.w>p.x&&(bird.y<p.topEnd||bird.y+bird.h>p.bottomStart)) endGame();
+  });
+  if(pipes.length&&pipes[0].x<-120) pipes.shift();
+  if(frames%110===0) createPipe();
+}
+
+/* UI */
+function drawScore(){
+  ctx.fillStyle="#fff";
+  ctx.font="28px Arial";
+  ctx.fillText(score,W/2-8,50);
+}
+
+/* GAME OVER */
+function endGame(){gameOver=true;music.pause();}
+function drawOver(){
+  ctx.fillStyle="rgba(0,0,0,.6)";
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#fff";
+  ctx.font="30px Arial";
+  ctx.fillText("Game Over",95,260);
+  ctx.font="18px Arial";
+  ctx.fillText("Tap to Restart",115,310);
+}
+
+/* LOOP */
+function loop(){
+  ctx.clearRect(0,0,W,H);
+  drawBG();
+  if(!gameOver){
+    bird.update();
+    updatePipes();
+    drawPipes();
+    bird.draw();
+    drawScore();
+    frames++;
+  }else drawOver();
+  requestAnimationFrame(loop);
+}
+
+/* TOUCH / CLICK */
+function tap(){
+  music.play();
+  if(gameOver){
+    frames=score=0;
+    pipes.length=0;
+    bird.y=260;bird.vel=0;
+    gapCenter=H/2;
+    gameOver=false;bgX=0;
+  }else bird.flap();
+}
+
+canvas.addEventListener("click",tap);
+canvas.addEventListener("touchstart",e=>{e.preventDefault();tap();});
+
+/* START */
+let loaded=0;
+function start(){if(++loaded===2) loop();}
+pipeImg.onload=start;
+bgImg.onload=start;
+</script>
+
+</body>
+</html>
